@@ -1,0 +1,1212 @@
+<!doctype html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AI 八字命盤 Prompt 生成器 · 命盤工坊</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400&display=swap"
+    />
+    <link rel="stylesheet" href="hark.css" />
+    <link rel="stylesheet" href="hark-charts.css" />
+    <link rel="stylesheet" href="hark-hero.css" />
+    <style>
+      .x-brand { flex: none; display: inline-flex; align-items: center; min-height: var(--tap); padding: 0 14px; border-radius: var(--r-pill); background: var(--fill-primary-on); color: var(--text-primary); font: var(--type-label); text-decoration: none; white-space: nowrap; }
+      .x-calc { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; min-width: 0; }
+      .x-calc > *, #bz-out > * { min-width: 0; max-width: 100%; }
+      #bz-out { overflow: hidden; }
+      .x-form > * { min-width: 0; }
+      #bz-out .chart canvas { max-width: 100%; }
+      .x-form { display: grid; gap: 16px 20px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); padding: 22px 24px; border-radius: var(--r-m); background: var(--fill-tertiary); }
+      .x-field { display: grid; gap: 6px; align-content: start; min-width: 0; margin: 0; padding: 0; border: 0; }
+      .x-label { padding: 0; font: var(--type-label); color: var(--text-secondary); }
+      .x-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+      .x-in { flex: 1 1 70px; min-width: 0; min-height: var(--tap); padding: 8px 12px; border: 1px solid var(--stroke-primary); border-radius: var(--r-s); background: var(--fill-primary-on); color: var(--text-primary); font: var(--type-body); }
+      .x-check { display: inline-flex; align-items: center; gap: 8px; min-height: var(--tap); font: var(--type-small); cursor: pointer; }
+      .x-check input { width: 18px; height: 18px; margin: 0; accent-color: var(--fill-primary); }
+      .x-wide { grid-column: 1 / -1; }
+      .x-btns { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+      .x-go { min-height: var(--tap); padding: 10px 20px; border: 1px solid var(--fill-primary); border-radius: var(--r-s); background: var(--fill-primary); color: var(--text-primary-on); font: var(--type-label); cursor: pointer; transition: box-shadow var(--dur-quick) ease; }
+      .x-go:hover { box-shadow: inset 0 0 0 100px var(--hover-wash-primary-on); }
+      .x-go--big { padding: 12px 24px; font: var(--type-body-strong); }
+      .x-go--ghost { border-color: var(--stroke-primary); background: var(--fill-primary-on); color: var(--text-primary); }
+      .x-go--ghost:hover { box-shadow: inset 0 0 0 100px var(--hover-wash); }
+      .x-err { font: var(--type-small); color: var(--fill-system-red); }
+      .x-h3 { margin: 8px 0 10px; font: var(--type-heading); }
+      .x-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font: var(--type-small); color: var(--text-secondary); }
+      .x-pan { overflow-x: auto; border: 1px solid var(--stroke-primary); border-radius: var(--r-m); }
+      .x-grid { display: grid; grid-template-columns: 64px repeat(4, minmax(76px, 1fr)); min-width: 380px; }
+      .x-grid > div { padding: 8px 6px; border-bottom: 1px solid var(--stroke-secondary); text-align: center; font: var(--type-small); }
+      .x-grid > div.x-last { border-bottom: 0; }
+      .x-grid .x-lab { padding-left: 14px; text-align: left; font: var(--type-caption); color: var(--text-secondary); align-self: stretch; display: flex; align-items: center; }
+      .x-grid .x-hd { background: var(--fill-tertiary); font: var(--type-label); }
+      .x-big { font: var(--weight-medium) 40px/1.1 var(--sans); }
+      .x-tags { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; }
+      .x-sm { font: var(--type-caption); color: var(--text-secondary); }
+      .x-mu { color: var(--chart-good); }
+      .x-huo { color: var(--fill-system-red); }
+      .x-tu { color: color-mix(in srgb, var(--chart-3) 55%, var(--text-primary)); }
+      .x-jin { color: color-mix(in srgb, var(--chart-5) 50%, var(--text-primary)); }
+      .x-shui { color: color-mix(in srgb, var(--chart-1) 40%, var(--text-primary)); }
+      .x-scroll { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; scroll-snap-type: x proximity; }
+      .x-yun { flex: none; display: grid; gap: 4px; width: 100px; padding: 12px 8px; border-radius: var(--r-s); background: var(--fill-tertiary); text-align: center; scroll-snap-align: start; }
+      .x-yun.is-current { background: var(--fill-primary-on); box-shadow: inset 0 0 0 1.5px var(--fill-system-orange); }
+      .x-yun b { font: var(--weight-medium) 26px/1.1 var(--sans); }
+      .x-pre { margin: 0; max-height: 540px; overflow: auto; padding: 18px 20px; border-radius: var(--r-m); background: var(--fill-tertiary); color: var(--text-primary); font: var(--weight-regular) var(--size-meta)/1.6 "Geist Mono", ui-monospace, monospace; white-space: pre-wrap; word-break: break-word; }
+      .x-ta { position: fixed; top: 0; left: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+      .x-toast { position: fixed; left: 50%; bottom: 24px; z-index: 50; padding: 10px 18px; border-radius: var(--r-pill); background: var(--fill-primary); color: var(--text-primary-on); font: var(--type-label); box-shadow: var(--hark-shadow); opacity: 0; transform: translate(-50%, 12px); transition: opacity var(--dur-quick) var(--ease-out), transform var(--dur-quick) var(--ease-out); pointer-events: none; }
+      .x-toast.is-on { opacity: 1; transform: translate(-50%, 0); }
+      .x-faq { display: grid; gap: 8px; }
+      .x-faq details { border-radius: var(--r-m); background: var(--fill-tertiary); }
+      .x-faq summary { display: flex; justify-content: space-between; gap: 12px; align-items: center; min-height: var(--tap); padding: 14px 22px; font: var(--type-body-strong); cursor: pointer; list-style: none; }
+      .x-faq summary::-webkit-details-marker { display: none; }
+      .x-faq summary::after { content: "+"; flex: none; font: var(--type-heading); color: var(--text-secondary); }
+      .x-faq details[open] summary::after { content: "−"; }
+      .x-faq details p { padding: 0 22px 18px; max-width: 68ch; color: var(--text-secondary); }
+      .x-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; padding: 4px; border-radius: var(--r-m); background: var(--fill-tertiary); }
+      .x-tab { min-height: var(--tap); padding: 8px 6px; border: 0; border-radius: var(--r-s); background: transparent; color: var(--text-secondary); font: var(--type-label); cursor: pointer; transition: background var(--dur-quick) var(--ease-out); }
+      .x-tab span { font: var(--type-caption); letter-spacing: 0.04em; }
+      .x-tab[aria-selected="true"] { background: var(--fill-primary-on); color: var(--text-primary); box-shadow: 0 0 0 1px var(--stroke-primary); }
+      .x-tab:hover { color: var(--text-primary); }
+      .x-calc:not([data-tab="solo"]) #bz-out { display: none; }
+      .x-smx { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); }
+      .x-smx[hidden], .x-form[hidden], .x-row[hidden] { display: none; }
+      .x-styles { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr)); }
+      .x-style { position: relative; display: grid; gap: 4px; min-height: var(--tap); padding: 12px 14px; border: 1px solid var(--stroke-primary); border-radius: var(--r-s); background: var(--fill-primary-on); font: var(--type-label); cursor: pointer; }
+      .x-style input { position: absolute; opacity: 0; pointer-events: none; }
+      .x-style:has(input:checked) { box-shadow: inset 0 0 0 1.5px var(--fill-primary); }
+      .x-style:has(input:focus-visible) { outline: 2px solid var(--fill-primary); outline-offset: 2px; }
+      .x-duo { grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); }
+      .x-panel { display: grid; gap: 12px; align-content: start; min-width: 0; padding: 16px; border: 1px solid var(--stroke-secondary); border-radius: var(--r-s); background: var(--fill-primary-on); }
+      .x-panel h3 { margin: 0; font: var(--type-heading); }
+      #pair-out, #sm-out { min-width: 0; overflow: hidden; }
+      #pair-out > *, #sm-out > * { min-width: 0; max-width: 100%; }
+      .x-grid--pair .x-rel { font: var(--type-caption); color: var(--text-secondary); }
+      .x-grid .x-key { font: var(--type-label); }
+      @media (max-width: 599px) { .x-big { font-size: 32px; } .x-form { padding: 18px 16px; } .x-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    </style>
+  </head>
+  <body>
+    <div class="page" id="top">
+      <header class="nav glass" data-auto></header>
+      <main class="main">
+        <section class="hero">
+          <img class="hero__img" src="bazi-hero.jpg" alt="深色書桌上的青銅羅盤與書法卷軸" />
+          <div class="hero__copy">
+            <p class="hero__eyebrow">✦ 免費 · 不限次數 · 100% 文字精度</p>
+            <h1>免費 AI 八字命理 Prompt</h1>
+            <p class="hero__sub">一鍵餵到 ChatGPT · Claude · DeepSeek · Gemini</p>
+            <p class="hero__meta">資深子平命理師級提示詞，含完整命盤資料；純文字輸出，避免圖片 OCR 誤識干支字。</p>
+          </div>
+          <aside class="callout" aria-label="開始排盤">
+            <p class="callout__head"><span class="hark-mark" data-size="16"></span> 命盤工坊</p>
+            <p class="callout__lead"><strong>輸入生日，馬上拿到命盤 + Prompt。</strong> 排盤在瀏覽器內完成。</p>
+            <a class="btn" href="#calc">開始排盤</a>
+          </aside>
+        </section>
+
+        <section class="section" id="calc" data-nav="排盤">
+          <div class="head">
+            <p class="head__eyebrow">排盤工具</p>
+            <h2>填好出生資料，命盤和 Prompt 一起生成。</h2>
+            <p class="head__sub">生成後貼到 ChatGPT / Claude / DeepSeek / Gemini。不經伺服器，不儲存任何資料。</p>
+          </div>
+          <div class="x-calc" id="x-calc" data-tab="solo">
+            <div class="x-tabs" role="tablist" aria-label="排盤模式">
+              <button class="x-tab" type="button" role="tab" data-tab="solo" aria-selected="true">個人 <span>SOLO</span></button>
+              <button class="x-tab" type="button" role="tab" data-tab="marriage" aria-selected="false">合婚 <span>MARRIAGE</span></button>
+              <button class="x-tab" type="button" role="tab" data-tab="career" aria-selected="false">事業 <span>CAREER</span></button>
+              <button class="x-tab" type="button" role="tab" data-tab="soulmate" aria-selected="false">正緣 <span>SOULMATE</span></button>
+            </div>
+            <form class="x-form" id="bz-form" novalidate>
+              <label class="x-field"><span class="x-label">姓名（可選）</span><input class="x-in" id="f-name" type="text" maxlength="20" placeholder="例如：王小明" autocomplete="off" /></label>
+              <fieldset class="x-field"><legend class="x-label">性別</legend>
+                <div class="x-row">
+                  <label class="x-check"><input type="radio" name="gender" value="男" checked /> 男</label>
+                  <label class="x-check"><input type="radio" name="gender" value="女" /> 女</label>
+                </div>
+              </fieldset>
+              <fieldset class="x-field"><legend class="x-label">出生日期（公曆）</legend>
+                <div class="x-row">
+                  <select class="x-in" id="f-y" aria-label="年"></select>
+                  <select class="x-in" id="f-m" aria-label="月"></select>
+                  <select class="x-in" id="f-d" aria-label="日"></select>
+                </div>
+              </fieldset>
+              <fieldset class="x-field"><legend class="x-label">出生時間</legend>
+                <div class="x-row">
+                  <select class="x-in" id="f-h" aria-label="時"></select>
+                  <select class="x-in" id="f-mi" aria-label="分"></select>
+                </div>
+                <label class="x-check"><input type="checkbox" id="f-unknown" /> 時辰不明</label>
+              </fieldset>
+              <div class="x-field">
+                <label class="x-label" for="f-city">出生地</label>
+                <select class="x-in" id="f-city"></select>
+                <div class="x-row" id="f-custom" hidden>
+                  <input class="x-in" id="f-lon" type="number" step="0.01" min="-180" max="180" value="121.56" aria-label="經度（東正西負）" placeholder="經度" />
+                  <input class="x-in" id="f-tz" type="number" step="0.5" min="-12" max="14" value="8" aria-label="UTC 時差" placeholder="UTC±" />
+                </div>
+                <label class="x-check"><input type="checkbox" id="f-correct" checked /> 真太陽時校正</label>
+              </div>
+              <div class="x-field x-wide x-smx" id="sm-extra" hidden>
+                <fieldset class="x-field"><legend class="x-label">正緣性別（要畫的人，預設取異性）</legend>
+                  <div class="x-row">
+                    <label class="x-check"><input type="radio" name="sm-gender" value="女" checked /> 女</label>
+                    <label class="x-check"><input type="radio" name="sm-gender" value="男" /> 男</label>
+                  </div>
+                </fieldset>
+                <fieldset class="x-field"><legend class="x-label">畫風</legend>
+                  <div class="x-styles">
+                    <label class="x-style"><input type="radio" name="sm-style" value="soft realistic colored pencil portrait" checked /><b>彩鉛寫實</b><span class="x-sm">soft realistic colored pencil portrait</span></label>
+                    <label class="x-style"><input type="radio" name="sm-style" value="realistic photographic portrait, natural light, 85mm lens" /><b>寫實攝影</b><span class="x-sm">realistic photographic portrait, natural light, 85mm lens</span></label>
+                    <label class="x-style"><input type="radio" name="sm-style" value="light watercolor portrait with soft washes" /><b>水彩淡彩</b><span class="x-sm">light watercolor portrait with soft washes</span></label>
+                  </div>
+                </fieldset>
+              </div>
+              <div class="x-field x-wide">
+                <div class="x-btns"><button class="x-go x-go--big" type="submit" id="b-solo-go">生成命盤 + Prompt</button><span class="x-err" id="f-err" role="alert"></span></div>
+              </div>
+            </form>
+
+            <div id="bz-out" hidden>
+              <p class="x-meta" id="o-time"></p>
+              <h3 class="x-h3">四柱命盤</h3>
+              <div class="x-pan"><div class="x-grid" id="o-grid"></div></div>
+              <h3 class="x-h3">大運</h3>
+              <div class="x-scroll" id="o-dayun"></div>
+              <h3 class="x-h3" id="o-ln-title">流年</h3>
+              <div class="x-scroll" id="o-liunian"></div>
+              <figure class="chart" style="margin-top:16px">
+                <figcaption class="chart__cap" id="o-wx-cap">五行強弱<small>天干各 1，藏干本氣 1 / 中氣 0.5 / 餘氣 0.3</small></figcaption>
+                <div class="chart__canvas"><canvas id="wx-chart" role="img" aria-label="五行強弱百分比"></canvas></div>
+              </figure>
+              <h3 class="x-h3" id="prompt">Prompt + 命盤（純文字）</h3>
+              <div class="x-btns" style="margin-bottom:12px">
+                <button class="x-go x-go--big" type="button" id="b-copy">⧉ 複製 Prompt + 命盤</button>
+                <button class="x-go x-go--ghost" type="button" id="b-copy-chart">只複製命盤</button>
+              </div>
+              <pre class="x-pre" id="o-pre"></pre>
+              <p class="fineprint" style="margin-top:10px">下一步：貼到 ChatGPT / Claude / DeepSeek / Gemini，再用你想要的語言追問。</p>
+            </div>
+
+            <form class="x-form x-duo" id="pair-form" novalidate hidden>
+              <div class="x-panel" id="pa"></div>
+              <div class="x-panel" id="pb"></div>
+              <div class="x-field x-wide">
+                <label class="x-check"><input type="checkbox" id="p-correct" checked /> 真太陽時校正（兩人共用）</label>
+                <div class="x-btns"><button class="x-go x-go--big" type="submit">生成合盤 + Prompt</button><span class="x-err" id="p-err" role="alert"></span></div>
+              </div>
+            </form>
+
+            <div id="pair-out" hidden>
+              <h3 class="x-h3">四柱逐柱對照</h3>
+              <div class="x-pan"><div class="x-grid x-grid--pair" id="pr-grid"></div></div>
+              <p class="x-meta" id="pr-ny" style="margin-top:10px"></p>
+              <div class="pair" style="margin-top:16px">
+                <figure class="chart">
+                  <figcaption class="chart__cap" id="pr-cap-a">甲方五行</figcaption>
+                  <div class="chart__canvas"><canvas id="pr-wx-a" role="img" aria-label="甲方五行強弱"></canvas></div>
+                </figure>
+                <figure class="chart">
+                  <figcaption class="chart__cap" id="pr-cap-b">乙方五行</figcaption>
+                  <div class="chart__canvas"><canvas id="pr-wx-b" role="img" aria-label="乙方五行強弱"></canvas></div>
+                </figure>
+              </div>
+              <h3 class="x-h3">合盤 Prompt（純文字）</h3>
+              <div class="x-btns" style="margin-bottom:12px"><button class="x-go x-go--big" type="button" id="b-pair-copy">⧉ 複製合盤 Prompt</button></div>
+              <pre class="x-pre" id="pr-pre"></pre>
+            </div>
+
+            <div id="sm-out" hidden>
+              <h3 class="x-h3">四柱</h3>
+              <div class="x-pan"><div class="x-grid" id="sm-grid"></div></div>
+              <h3 class="x-h3">配偶星取象 · 真值</h3>
+              <div class="breakdown"><dl id="sm-facts"></dl></div>
+              <h3 class="x-h3">正緣畫像 Prompt（純文字）</h3>
+              <div class="x-btns" style="margin-bottom:12px"><button class="x-go x-go--big" type="button" id="b-sm-copy">⧉ 複製正緣 Prompt</button></div>
+              <pre class="x-pre" id="sm-pre"></pre>
+              <p class="fineprint" style="margin-top:10px">貼到有出圖功能的 Gemini 或 ChatGPT，文字解讀和畫像會一起出來。</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="how" data-nav="用法">
+          <div class="head">
+            <p class="head__eyebrow">使用方法</p>
+            <h2>怎麼用 AI 算八字？4 步走</h2>
+          </div>
+          <div class="steps">
+            <article class="step">
+              <div class="step__intro"><p class="step__num">01</p><p class="step__eyebrow">準備資料</p></div>
+              <div>
+                <h3>確認出生時間（公曆）</h3>
+                <p>年月日時分，最好精確到分鐘；出生地用來做真太陽時校正。</p>
+              </div>
+            </article>
+            <article class="step">
+              <div class="step__intro"><p class="step__num">02</p><p class="step__eyebrow">自動排盤</p></div>
+              <div>
+                <h3>換算成八字命盤</h3>
+                <p>自動完成真太陽時校正、子時分日、四柱十神、藏干十神、納音、星運、神煞、起大運、流年。</p>
+              </div>
+            </article>
+            <article class="step">
+              <div class="step__intro"><p class="step__num">03</p><p class="step__eyebrow">一鍵複製</p></div>
+              <div>
+                <h3>Prompt + 命盤一起貼到 AI</h3>
+                <p>點「複製 Prompt + 命盤」，貼進 ChatGPT / Claude / DeepSeek / Gemini。</p>
+                <div class="links" style="margin-top:12px"><a class="btn" href="#prompt">前往複製</a></div>
+              </div>
+            </article>
+            <article class="step">
+              <div class="step__intro"><p class="step__num">04</p><p class="step__eyebrow">深入追問</p></div>
+              <div>
+                <h3>追問你關心的話題</h3>
+                <p>如「2026 年事業」「桃花何時來」「健康忌諱」「子女緣分」。</p>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="section" id="compare" data-nav="比較">
+          <div class="head">
+            <p class="head__eyebrow">差別在哪</p>
+            <h2>和網上的純 prompt 模板有什麼差別？</h2>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th scope="col">項目</th><th scope="col">純 prompt 模板</th><th scope="col">本工具</th></tr>
+              </thead>
+              <tbody>
+                <tr><th scope="row">命盤資料</th><td class="muted">需自己填</td><td>自動生成</td></tr>
+                <tr><th scope="row">需要懂八字</th><td class="muted">是</td><td>否</td></tr>
+                <tr><th scope="row">OCR 誤識風險</th><td class="muted">圖片會誤識 巳/己/已、戊/戌/戍</td><td>純文字 0 風險</td></tr>
+                <tr><th scope="row">大運流年</th><td class="muted">需手算</td><td>自動包含</td></tr>
+                <tr><th scope="row">真太陽時校正</th><td class="muted">需查經度表</td><td>自動</td></tr>
+                <tr><th scope="row">費用</th><td class="muted">免費</td><td>免費、不用註冊、資料不離開瀏覽器</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="section" id="faq" data-nav="問答">
+          <div class="head">
+            <p class="head__eyebrow">常見問題</p>
+            <h2>關於 AI 算八字，你可能想問。</h2>
+          </div>
+          <div class="x-faq">
+            <details><summary>AI 算命準嗎？</summary><p>AI 不能預測未來；拿到結構化命盤後，它是把命理分析框架套到你的命盤上，當成一份參考意見而非絕對預測。</p></details>
+            <details><summary>哪個 AI 分析八字最好？</summary><p>DeepSeek 中文命理語感自然，Claude 長篇推理穩定，ChatGPT 結構化輸出最規整；免費用 DeepSeek 即可。</p></details>
+            <details><summary>為什麼要文字不要截圖？</summary><p>巳/己/已、戊/戌/戍、壬/王 字形接近，圖片辨識有誤識風險；純文字最準。</p></details>
+            <details><summary>資料會上傳嗎？</summary><p>不會，排盤全部在你的瀏覽器內完成。</p></details>
+            <details><summary>早子時/晚子時怎麼算？</summary><p>預設 23:00 後算次日日柱（晚子時換日）。</p></details>
+            <details><summary>不知道對方時辰怎麼辦？</summary><p>可留空，時柱合沖與起運精確年份從略，日支夫妻宮判定不受影響。</p></details>
+            <details><summary>合夥看哪一柱？</summary><p>合婚重日支夫妻宮，合夥重月支事業宮（也主同儕與事業根基）。</p></details>
+            <details><summary>上下級、投資人也能用嗎？</summary><p>能，追問時說清關係即可。</p></details>
+            <details><summary>畫出來的是未來伴侶的長相嗎？</summary><p>不是，是命理取象推出的一類人的質地。</p></details>
+            <details><summary>為什麼男看正財、女看正官？</summary><p>我剋者為財、剋我者為官；不見配偶星時回到日支配偶宮論。</p></details>
+            <details><summary>正緣畫像用哪個 AI？</summary><p>選有出圖功能的 Gemini 或 ChatGPT；純文字模型也能寫完，再把英文描述貼去出圖工具。</p></details>
+          </div>
+        </section>
+      </main>
+      <footer class="foot">
+        <p><strong>命盤工坊</strong> · 僅供文化娛樂參考 · 非專業決策依據</p>
+        <nav aria-label="回到各區" data-auto></nav>
+        <a class="badge" href="https://hark.com/" target="_blank" rel="noopener"><span class="hark-mark"></span><span>built by hark</span></a>
+      </footer>
+    </div>
+    <textarea class="x-ta" id="x-ta" aria-hidden="true" tabindex="-1" readonly></textarea>
+    <div class="x-toast" id="x-toast" role="status" aria-live="polite"></div>
+    <script src="hark.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lunar-javascript@1.7.7/lunar.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    <script src="hark-charts.js"></script>
+    <script id="bz-engine">
+      var BZ = (function () {
+        var GAN = "甲乙丙丁戊己庚辛壬癸", ZHI = "子丑寅卯辰巳午未申酉戌亥";
+        var WXG = "木木火火土土金金水水", WXZ = "水土木木土火火土金金土水";
+        var CLS = { 木: "x-mu", 火: "x-huo", 土: "x-tu", 金: "x-jin", 水: "x-shui" };
+        var HIDE = { 子: "癸", 丑: "己癸辛", 寅: "甲丙戊", 卯: "乙", 辰: "戊乙癸", 巳: "丙庚戊", 午: "丁己", 未: "己丁乙", 申: "庚壬戊", 酉: "辛", 戌: "戊辛丁", 亥: "壬甲" };
+        var PAIRS = "杀殺财財伤傷头頭长長带帶临臨绝絕养養炉爐剑劍锋鋒涧澗蜡蠟杨楊雳靂灯燈驿驛钗釵钏釧墙牆宝寶贵貴禄祿马馬华華盖蓋时時运運岁歲阳陽阴陰关關门門吊弔丧喪纳納音音劫劫冲沖";
+        var MAP = {};
+        for (var pi = 0; pi < PAIRS.length; pi += 2) MAP[PAIRS[pi]] = PAIRS[pi + 1];
+        function tc(s) { s = String(s == null ? "" : s); var o = ""; for (var i = 0; i < s.length; i++) o += MAP[s[i]] || s[i]; return o; }
+        function wx(c) { var i = GAN.indexOf(c); return i >= 0 ? WXG[i] : WXZ[ZHI.indexOf(c)]; }
+        var GEN = { 木: "火", 火: "土", 土: "金", 金: "水", 水: "木" };
+        var CTRL = { 木: "土", 土: "水", 水: "火", 火: "金", 金: "木" };
+        function shiShen(day, t) {
+          var a = GAN.indexOf(day), b = GAN.indexOf(t), same = a % 2 === b % 2, ea = WXG[a], eb = WXG[b];
+          if (ea === eb) return same ? "比肩" : "劫財";
+          if (GEN[ea] === eb) return same ? "食神" : "傷官";
+          if (CTRL[ea] === eb) return same ? "偏財" : "正財";
+          if (CTRL[eb] === ea) return same ? "七殺" : "正官";
+          return same ? "偏印" : "正印";
+        }
+        var STAGES = ["長生", "沐浴", "冠帶", "臨官", "帝旺", "衰", "病", "死", "墓", "絕", "胎", "養"];
+        var CS = { 甲: "亥", 丙: "寅", 戊: "寅", 庚: "巳", 壬: "申", 乙: "午", 丁: "酉", 己: "酉", 辛: "子", 癸: "卯" };
+        function stage(g, z) {
+          var s = ZHI.indexOf(CS[g]), t = ZHI.indexOf(z);
+          return STAGES[GAN.indexOf(g) % 2 === 0 ? (t - s + 12) % 12 : (s - t + 12) % 12];
+        }
+        function nayin(gz) { return tc((typeof LunarUtil !== "undefined" && LunarUtil.NAYIN[gz]) || ""); }
+        function gzOfYear(y) { return GAN[(((y - 4) % 10) + 10) % 10] + ZHI[(((y - 4) % 12) + 12) % 12]; }
+
+        // 神煞
+        var TIANYI = { 甲: "丑未", 戊: "丑未", 庚: "丑未", 乙: "子申", 己: "子申", 丙: "亥酉", 丁: "亥酉", 辛: "寅午", 壬: "卯巳", 癸: "卯巳" };
+        var WENCHANG = { 甲: "巳", 乙: "午", 丙: "申", 丁: "酉", 戊: "申", 己: "酉", 庚: "亥", 辛: "子", 壬: "寅", 癸: "卯" };
+        var TAIJI = { 甲: "子午", 乙: "子午", 丙: "卯酉", 丁: "卯酉", 戊: "辰戌丑未", 己: "辰戌丑未", 庚: "寅亥", 辛: "寅亥", 壬: "巳申", 癸: "巳申" };
+        var GUOYIN = { 甲: "戌", 乙: "亥", 丙: "丑", 丁: "寅", 戊: "丑", 己: "寅", 庚: "辰", 辛: "巳", 壬: "未", 癸: "申" };
+        var TIANCHU = { 甲: "巳", 乙: "午", 丙: "巳", 丁: "午", 戊: "申", 己: "酉", 庚: "亥", 辛: "子", 壬: "寅", 癸: "卯" };
+        var FUXING = { 甲: "寅子", 丙: "寅子", 乙: "卯丑", 癸: "卯丑", 戊: "申", 己: "未", 丁: "亥", 庚: "午", 辛: "巳", 壬: "辰" };
+        var GROUPS = ["申子辰", "寅午戌", "巳酉丑", "亥卯未"];
+        var GROUP_WX = ["水", "火", "金", "木"];
+        function grp(z) { for (var i = 0; i < 4; i++) if (GROUPS[i].indexOf(z) >= 0) return i; return -1; }
+        var BYGRP = [["驛馬", "寅申亥巳"], ["桃花(咸池)", "酉卯午子"], ["華蓋", "辰戌丑未"], ["將星", "子午酉卯"], ["劫煞", "巳亥寅申"], ["災煞", "午子卯酉"], ["亡神", "亥巳申寅"]];
+        var YANGREN = { 甲: "卯", 乙: "辰", 丙: "午", 丁: "未", 戊: "午", 己: "未", 庚: "酉", 辛: "戌", 壬: "子", 癸: "丑" };
+        function pairMap(s) { var m = {}; for (var i = 0; i < s.length; i += 2) m[s[i]] = s[i + 1]; return m; }
+        var TIANDE = pairMap("寅丁卯申辰壬巳辛午亥未甲申癸酉寅戌丙亥乙子巳丑庚");
+        var TIANDEHE = pairMap("寅壬卯巳辰丁巳丙午寅未己申戊酉亥戌辛亥庚子申丑乙");
+        var YUEDE = ["壬", "丙", "庚", "甲"], YUEDEHE = ["丁", "辛", "乙", "己"];
+        var DE = ["壬癸戊己", "丙丁", "庚辛", "甲乙"], XIU = ["丙辛甲己", "戊癸", "乙庚", "丁壬"];
+        var JIUCHOU = ["戊子", "戊午", "壬子", "壬午", "乙卯", "乙酉", "己卯", "己酉", "辛卯", "辛酉"];
+
+        function shensha(P, i, c) {
+          var g = P[i].g, z = P[i].z, out = [];
+          function add(n) { if (out.indexOf(n) < 0) out.push(n); }
+          [c.dg, c.yg].forEach(function (b) {
+            if (TIANYI[b].indexOf(z) >= 0) add("天乙貴人");
+            if (WENCHANG[b] === z) add("文昌貴人");
+            if (TAIJI[b].indexOf(z) >= 0) add("太極貴人");
+            if (GUOYIN[b] === z) add("國印貴人");
+            if (TIANCHU[b] === z) add("天廚貴人");
+            if (FUXING[b].indexOf(z) >= 0) add("福星貴人");
+          });
+          [c.yz, c.dz].forEach(function (b) {
+            var k = grp(b);
+            BYGRP.forEach(function (r) { if (r[1][k] === z) add(r[0]); });
+          });
+          if (YANGREN[c.dg] === z) add("羊刃");
+          if (ZHI[(ZHI.indexOf(YANGREN[c.dg]) + 6) % 12] === z) add("飛刃");
+          var mk = grp(c.mz), td = TIANDE[c.mz], tdh = TIANDEHE[c.mz];
+          if (g === td || z === td) add("天德貴人");
+          if (g === YUEDE[mk]) add("月德貴人");
+          if (g === tdh || z === tdh) add("天德合");
+          if (g === YUEDEHE[mk]) add("月德合");
+          if (c.dexiu && (DE[mk] + XIU[mk]).indexOf(g) >= 0) add("德秀貴人");
+          if ((i !== 2 && c.dxk.indexOf(z) >= 0) || (i !== 0 && c.yxk.indexOf(z) >= 0)) add("空亡");
+          if (i !== 0) {
+            var yi = ZHI.indexOf(c.yz);
+            if (z === ZHI[(yi + 2) % 12]) add("喪門");
+            if (z === ZHI[(yi + 10) % 12]) add("弔客");
+          }
+          if (i === 2 && JIUCHOU.indexOf(g + z) >= 0) add("九丑日");
+          if (i >= 2) {
+            var springAutumn = "寅卯辰申酉戌".indexOf(c.mz) >= 0;
+            var ny = c.yny.slice(-1);
+            var byNy = ny === "金" || ny === "木" ? "午卯" : ny === "水" || ny === "火" ? "酉戌" : "辰巳";
+            if ((springAutumn ? "寅子" : "卯未辰").indexOf(z) >= 0 || byNy.indexOf(z) >= 0) add("童子煞");
+          }
+          return out;
+        }
+
+        function wuxing(P, noHour) {
+          var W = [1, 0.5, 0.3], s = { 木: 0, 火: 0, 土: 0, 金: 0, 水: 0 }, keys = ["木", "火", "土", "金", "水"];
+          P.forEach(function (p, i) {
+            if (i === 3 && noHour) return;
+            s[wx(p.g)] += 1;
+            HIDE[p.z].split("").forEach(function (h, k) { s[wx(h)] += W[k]; });
+          });
+          var tot = keys.reduce(function (a, k) { return a + s[k]; }, 0);
+          var pct = keys.map(function (k) { return Math.round((s[k] / tot) * 100); });
+          return { keys: keys, pct: pct };
+        }
+
+        var WUHE = ["甲己", "乙庚", "丙辛", "丁壬", "戊癸"];
+        var LIUHE = ["子丑", "寅亥", "卯戌", "辰酉", "巳申", "午未"];
+        var CHONG = ["子午", "丑未", "寅申", "卯酉", "辰戌", "巳亥"];
+        var XING = ["寅巳", "巳申", "寅申", "丑戌", "戌未", "丑未", "子卯"];
+        var HAI = ["子未", "丑午", "寅巳", "卯辰", "申亥", "酉戌"];
+        function findPair(list, a, b) { for (var i = 0; i < list.length; i++) if (list[i] === a + b || list[i] === b + a) return list[i]; return null; }
+        function relations(P) {
+          var gs = [], zs = [];
+          function add(arr, s) { if (arr.indexOf(s) < 0) arr.push(s); }
+          for (var i = 0; i < P.length; i++) for (var j = i + 1; j < P.length; j++) {
+            var a = P[i].g, b = P[j].g, x = P[i].z, y = P[j].z, f;
+            if ((f = findPair(WUHE, a, b))) add(gs, f + "合");
+            if (CTRL[wx(a)] === wx(b)) add(gs, a + "克" + b);
+            else if (CTRL[wx(b)] === wx(a)) add(gs, b + "克" + a);
+            if ((f = findPair(LIUHE, x, y))) add(zs, f + "合");
+            if ((f = findPair(CHONG, x, y))) add(zs, f + "沖");
+            if ((f = findPair(XING, x, y))) add(zs, f + "刑");
+            if (x === y && "辰午酉亥".indexOf(x) >= 0) add(zs, x + y + "自刑");
+            if ((f = findPair(HAI, x, y))) add(zs, f + "害");
+          }
+          var have = P.map(function (p) { return p.z; }).join("");
+          GROUPS.forEach(function (gp, k) {
+            var h = gp.split("").map(function (c) { return have.indexOf(c) >= 0; });
+            if (h[0] && h[1] && h[2]) add(zs, gp + "三合" + GROUP_WX[k] + "局");
+            else {
+              if (h[0] && h[1]) add(zs, gp[0] + gp[1] + "半合" + GROUP_WX[k]);
+              if (h[1] && h[2]) add(zs, gp[1] + gp[2] + "半合" + GROUP_WX[k]);
+            }
+          });
+          return { gan: gs.length ? gs.join(" / ") : "無", zhi: zs.length ? zs.join(" / ") : "無" };
+        }
+
+        function pad(n) { return (n < 10 ? "0" : "") + n; }
+        function eot(N) { var B = (2 * Math.PI * (N - 81)) / 364; return 9.87 * Math.sin(2 * B) - 7.53 * Math.cos(B) - 1.5 * Math.sin(B); }
+
+        function compute(o) {
+          var h = o.unknown ? 12 : o.h, mi = o.unknown ? 0 : o.mi, delta = 0;
+          var corrected = !!(o.correct && !o.unknown);
+          if (corrected) {
+            var N = Math.round((Date.UTC(o.y, o.m - 1, o.d) - Date.UTC(o.y, 0, 1)) / 864e5) + 1;
+            delta = Math.round((o.lon - 15 * o.tz) * 4 + eot(N));
+          }
+          var t = new Date(Date.UTC(o.y, o.m - 1, o.d, h, mi) + delta * 60000);
+          var Y = t.getUTCFullYear(), M = t.getUTCMonth() + 1, D = t.getUTCDate(), H = t.getUTCHours(), MI = t.getUTCMinutes();
+          var stamp = Y + "-" + pad(M) + "-" + pad(D) + " " + pad(H) + ":" + pad(MI);
+          var ec = Solar.fromYmdHms(Y, M, D, H, MI, 0).getLunar().getEightChar();
+          ec.setSect(1);
+          var names = ["年柱", "月柱", "日柱", "時柱"], keys = ["Year", "Month", "Day", "Time"];
+          var P = keys.map(function (k, i) {
+            var gz = ec["get" + k](), g = gz[0], z = gz[1];
+            return {
+              name: names[i], gz: gz, g: g, z: z,
+              ss: i === 2 ? (o.gender === "男" ? "元男" : "元女") : tc(ec["get" + k + "ShiShenGan"]()),
+              hide: ec["get" + k + "HideGan"](), hideSS: ec["get" + k + "ShiShenZhi"]().map(tc),
+              nayin: tc(ec["get" + k + "NaYin"]()), xy: tc(ec["get" + k + "DiShi"]()), zz: stage(g, z)
+            };
+          });
+          var dg = P[2].g, stems = P.map(function (p) { return p.g; }).join(""), mk = grp(P[1].z);
+          var hasAny = function (set) { return stems.split("").some(function (c) { return set.indexOf(c) >= 0; }); };
+          var ctx = {
+            dg: dg, yg: P[0].g, yz: P[0].z, dz: P[2].z, mz: P[1].z, yny: P[0].nayin,
+            dxk: LunarUtil.getXunKong(P[2].gz), yxk: LunarUtil.getXunKong(P[0].gz),
+            dexiu: hasAny(DE[mk]) && hasAny(XIU[mk])
+          };
+          P.forEach(function (p, i) { p.sha = i === 3 && o.unknown ? null : shensha(P, i, ctx); });
+
+          var cy = o.now || new Date().getFullYear();
+          var DY = ec.getYun(o.gender === "男" ? 1 : 0).getDaYun().slice(1, 10).map(function (d) {
+            var gz = d.getGanZhi(), g = gz[0], z = gz[1];
+            return {
+              start: d.getStartYear(), end: d.getEndYear(), age: d.getStartAge(), gz: gz, g: g, z: z,
+              ss: shiShen(dg, g), hideSS: HIDE[z].split("").map(function (x) { return shiShen(dg, x); }),
+              nayin: nayin(gz), xy: stage(dg, z), zz: stage(g, z),
+              cur: cy >= d.getStartYear() && cy <= d.getEndYear()
+            };
+          });
+          var LN = [];
+          for (var y = cy; y <= cy + 5; y++) {
+            var gz = gzOfYear(y), g = gz[0], z = gz[1];
+            LN.push({ year: y, gz: gz, g: g, z: z, ss: shiShen(dg, g), hideSS: HIDE[z].split("").map(function (x) { return shiShen(dg, x); }), nayin: nayin(gz), zz: stage(g, z) });
+          }
+          var WX = wuxing(P, o.unknown), REL = relations(P);
+
+          var L = ["【命盤資料】", "性別：" + o.gender];
+          if (o.name) L.push("姓名：" + o.name);
+          if (o.unknown) L.push("出生(陽曆)：" + o.y + "-" + pad(o.m) + "-" + pad(o.d) + " 時辰不明");
+          else L.push((corrected ? "出生(真太陽時)：" : "出生(陽曆)：") + stamp);
+          L.push("出生地：" + o.city, "", "【四柱】");
+          P.forEach(function (p) {
+            var s = p.name + " " + p.gz + " | 干十神=" + p.ss +
+              " | 藏干=" + p.hide.map(function (x) { return x + "(" + wx(x) + ")"; }).join(",") +
+              " | 支十神=" + p.hideSS.join(",") + " | 納音=" + p.nayin + " | 星運=" + p.xy + " | 自坐=" + p.zz;
+            if (p.sha) s += " | 神煞=" + (p.sha.length ? p.sha.join("·") : "無");
+            L.push(s);
+          });
+          L.push("日元：" + dg + wx(dg) + " ｜ 月令：" + P[1].z);
+          if (o.unknown) L.push("備註：時辰未知，時柱僅作參考");
+          L.push("", "【五行強弱】", WX.keys.map(function (k, i) { return k + " " + WX.pct[i] + "%"; }).join(" / "));
+          L.push("", "【原局關係】", "天干：" + REL.gan, "地支：" + REL.zhi, "", "【大運】");
+          DY.forEach(function (d) {
+            L.push((d.cur ? "[當前]" : "") + d.start + "(" + d.age + "歲) " + d.gz + " | 干十神=" + d.ss + " | 支藏十神=" + d.hideSS.join("·") +
+              " | 納音=" + d.nayin + " | 星運=" + d.xy + " | 自坐=" + d.zz);
+          });
+          L.push("", "【流年 " + cy + "–" + (cy + 5) + "】");
+          LN.forEach(function (n) {
+            L.push(n.year + " " + n.gz + " | 干十神=" + n.ss + " | 支藏十神=" + n.hideSS.join("·") + " | 納音=" + n.nayin + " | 自坐=" + n.zz);
+          });
+          L.push("---", "由「命盤工坊」生成");
+          var chartText = L.join("\n");
+          var head = [
+            "你是資深子平命理分析師。請基於下方命盤:",
+            "① 解讀格局技法(用神/旺衰/十神組合)",
+            "② 分析事業/財運/婚戀/子女/六親/健康",
+            "③ 推斷當前大運 + 前後5年關鍵事件(時間·喜忌·影響程度)",
+            "④ 給出核心建議與風險規避",
+            "",
+            "要求:嚴格依據所給資料,不引入胎元/命宮等未提供變數;開頭宣告「本分析僅供文化娛樂參考,非專業決策依據」;用我下一條訊息的語言回覆。"
+          ].join("\n");
+          return {
+            input: o, corrected: corrected, delta: delta, stamp: stamp, pillars: P, dayun: DY, liunian: LN,
+            wuxing: WX, relations: REL, year: cy, chartText: chartText, prompt: head + "\n\n" + chartText
+          };
+        }
+        return { compute: compute, wx: wx, cls: function (c) { return CLS[wx(c)]; }, shiShen: shiShen, stage: stage, GAN: GAN, ZHI: ZHI, HIDE: HIDE, GEN: GEN, CTRL: CTRL, GROUPS: GROUPS, GROUP_WX: GROUP_WX };
+      })();
+    </script>
+    <script>
+      (function () {
+        var CITIES = [
+          ["台北", 121.56, 8], ["新北", 121.47, 8], ["桃園", 121.3, 8], ["台中", 120.68, 8], ["台南", 120.21, 8], ["高雄", 120.31, 8],
+          ["基隆", 121.74, 8], ["新竹", 120.97, 8], ["嘉義", 120.45, 8], ["花蓮", 121.6, 8], ["台東", 121.15, 8], ["宜蘭", 121.75, 8],
+          ["香港", 114.17, 8], ["澳門", 113.54, 8], ["北京", 116.4, 8], ["上海", 121.47, 8], ["廣州", 113.26, 8], ["深圳", 114.06, 8],
+          ["珠海", 113.58, 8], ["杭州", 120.16, 8], ["南京", 118.8, 8], ["成都", 104.07, 8], ["重慶", 106.55, 8], ["武漢", 114.31, 8],
+          ["西安", 108.94, 8], ["天津", 117.2, 8], ["瀋陽", 123.43, 8], ["哈爾濱", 126.53, 8], ["昆明", 102.71, 8], ["烏魯木齊", 87.62, 8],
+          ["拉薩", 91.11, 8], ["福州", 119.3, 8], ["廈門", 118.09, 8], ["長沙", 112.94, 8], ["鄭州", 113.63, 8], ["濟南", 117.0, 8],
+          ["青島", 120.38, 8], ["新加坡", 103.82, 8], ["吉隆坡", 101.69, 8], ["東京", 139.69, 9], ["首爾", 126.98, 9],
+          ["紐約", -74.01, -5], ["洛杉磯", -118.24, -8], ["倫敦", -0.13, 0], ["雪梨", 151.21, 10], ["溫哥華", -123.12, -8]
+        ];
+        var $ = function (id) { return document.getElementById(id); };
+        function pad(n) { return (n < 10 ? "0" : "") + n; }
+        function opts(sel, from, to, val, fmt) {
+          var h = "";
+          for (var i = from; i <= to; i++) h += '<option value="' + i + '"' + (i === val ? " selected" : "") + ">" + fmt(i) + "</option>";
+          sel.innerHTML = h;
+        }
+        function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+        opts($("f-y"), 1900, 2100, 1995, function (i) { return i + " 年"; });
+        opts($("f-m"), 1, 12, 9, function (i) { return i + " 月"; });
+        opts($("f-h"), 0, 23, 14, function (i) { return pad(i) + " 時"; });
+        opts($("f-mi"), 0, 59, 9, function (i) { return pad(i) + " 分"; });
+        function fillDays(keep) {
+          var y = +$("f-y").value, m = +$("f-m").value, max = new Date(Date.UTC(y, m, 0)).getUTCDate();
+          opts($("f-d"), 1, max, Math.min(keep, max), function (i) { return i + " 日"; });
+        }
+        fillDays(15);
+        $("f-y").addEventListener("change", function () { fillDays(+$("f-d").value); });
+        $("f-m").addEventListener("change", function () { fillDays(+$("f-d").value); });
+        $("f-city").innerHTML = CITIES.map(function (c, i) {
+          return '<option value="' + i + '">' + c[0] + "（" + (c[1] >= 0 ? "東經 " : "西經 ") + Math.abs(c[1]).toFixed(2) + "，UTC" + (c[2] >= 0 ? "+" : "") + c[2] + "）</option>";
+        }).join("") + '<option value="custom">自訂經度</option>';
+        $("f-city").addEventListener("change", function () { $("f-custom").hidden = this.value !== "custom"; });
+        $("f-unknown").addEventListener("change", function () { $("f-h").disabled = $("f-mi").disabled = this.checked; });
+
+        var wxChart = null;
+        function ganCell(c) { return '<span class="' + BZ.cls(c) + '">' + c + "</span>"; }
+
+        function render(r) {
+          var o = r.input, P = r.pillars;
+          $("bz-out").hidden = false;
+          $("o-time").innerHTML = r.corrected
+            ? '<span class="pill">真太陽時</span> ' + r.stamp + "（校正 " + (r.delta >= 0 ? "+" : "−") + Math.abs(r.delta) + " 分）· 出生地 " + esc(o.city)
+            : o.unknown
+            ? '<span class="pill">時辰不明</span> ' + o.y + "-" + pad(o.m) + "-" + pad(o.d) + "，時柱以 12:00 排出，僅作參考"
+            : '<span class="pill">陽曆</span> ' + r.stamp + "（未做真太陽時校正）· 出生地 " + esc(o.city);
+          var rows = [
+            ["", function (p) { return p.name; }, "x-hd"],
+            ["干十神", function (p) { return p.ss; }],
+            ["天干", function (p) { return '<span class="x-big">' + ganCell(p.g) + "</span>"; }],
+            ["地支", function (p) { return '<span class="x-big">' + ganCell(p.z) + "</span>"; }],
+            ["藏干", function (p) { return p.hide.map(function (h) { return ganCell(h) + '<span class="x-sm">' + BZ.wx(h) + "</span>"; }).join(" "); }],
+            ["支十神", function (p) { return p.hideSS.join(" "); }],
+            ["納音", function (p) { return p.nayin; }],
+            ["星運", function (p) { return p.xy; }],
+            ["自坐", function (p) { return p.zz; }],
+            ["神煞", function (p) {
+              if (!p.sha) return '<span class="x-sm">時辰未知，略</span>';
+              return '<div class="x-tags">' + (p.sha.length ? p.sha.map(function (s) { return '<span class="pill">' + s + "</span>"; }).join("") : '<span class="x-sm">無</span>') + "</div>";
+            }]
+          ];
+          var h = "";
+          rows.forEach(function (row, ri) {
+            var last = ri === rows.length - 1 ? " x-last" : "";
+            h += '<div class="x-lab' + (row[2] ? " " + row[2] : "") + last + '">' + row[0] + "</div>";
+            P.forEach(function (p) { h += '<div class="' + (row[2] || "") + last + '">' + row[1](p) + "</div>"; });
+          });
+          $("o-grid").innerHTML = h;
+
+          $("o-dayun").innerHTML = r.dayun.map(function (d) {
+            return '<div class="x-yun' + (d.cur ? " is-current" : "") + '">' +
+              (d.cur ? '<span class="chip chip--solid" style="justify-self:center">當前</span>' : "") +
+              '<span class="x-sm">' + d.start + " · " + d.age + "歲</span>" +
+              '<span class="x-sm">' + d.ss + "</span><b>" + ganCell(d.g) + "<br />" + ganCell(d.z) + "</b>" +
+              '<span class="x-sm">' + d.hideSS.join(" ") + '</span><span class="x-sm">' + d.nayin + " · " + d.xy + "</span></div>";
+          }).join("");
+          $("o-ln-title").textContent = "流年 " + r.year + "–" + (r.year + 5);
+          $("o-liunian").innerHTML = r.liunian.map(function (n, i) {
+            return '<div class="x-yun' + (i === 0 ? " is-current" : "") + '">' +
+              '<span class="x-sm">' + n.year + (i === 0 ? " · 今年" : "") + '</span><span class="x-sm">' + n.ss + "</span><b>" + ganCell(n.g) + "<br />" + ganCell(n.z) + "</b>" +
+              '<span class="x-sm">' + n.hideSS.join(" ") + '</span><span class="x-sm">' + n.nayin + " · " + n.zz + "</span></div>";
+          }).join("");
+
+          var W = r.wuxing, txt = W.keys.map(function (k, i) { return k + " " + W.pct[i] + "%"; }).join(" / ");
+          $("o-wx-cap").innerHTML = "五行強弱：" + txt + "<small>天干各 1，藏干本氣 1 / 中氣 0.5 / 餘氣 0.3；單位 %</small>";
+          var canvas = $("wx-chart");
+          canvas.setAttribute("aria-label", "五行強弱 " + txt);
+          if (window.Chart) {
+            if (!wxChart) {
+              wxChart = new Chart(canvas, {
+                type: "bar",
+                data: { labels: W.keys, datasets: [{ label: "五行", data: W.pct.slice(), backgroundColor: ["var(--chart-2)", "var(--chart-7)", "var(--chart-3)", "var(--chart-5)", "var(--chart-1)"] }] },
+                options: {
+                  scales: { y: { ticks: { callback: function (v) { return v + "%"; } } } },
+                  plugins: {
+                    legend: { display: false },
+                    datalabels: Object.assign({}, Hark.labels.values, { formatter: function (v) { return v + "%"; } }),
+                    tooltip: { callbacks: { label: function (c) { return c.raw + "%"; } } }
+                  }
+                }
+              });
+            } else {
+              wxChart.data.datasets[0].data = W.pct.slice();
+              wxChart.update();
+            }
+          }
+          $("o-pre").textContent = r.prompt;
+        }
+
+        var last = null;
+        function run(scroll) {
+          $("f-err").textContent = "";
+          var cv = $("f-city").value, lon, tz, city;
+          if (cv === "custom") {
+            lon = parseFloat($("f-lon").value); tz = parseFloat($("f-tz").value);
+            if (!(lon >= -180 && lon <= 180) || !(tz >= -12 && tz <= 14)) { $("f-err").textContent = "請填入有效經度（−180 至 180）與 UTC 時差（−12 至 +14）。"; return; }
+            city = "自訂（經度 " + lon + "，UTC" + (tz >= 0 ? "+" : "") + tz + "）";
+          } else { var c = CITIES[+cv]; city = c[0]; lon = c[1]; tz = c[2]; }
+          var g = document.querySelector('input[name="gender"]:checked');
+          var o = {
+            name: $("f-name").value.trim(), gender: g ? g.value : "男",
+            y: +$("f-y").value, m: +$("f-m").value, d: +$("f-d").value, h: +$("f-h").value, mi: +$("f-mi").value,
+            unknown: $("f-unknown").checked, correct: $("f-correct").checked, lon: lon, tz: tz, city: city
+          };
+          try { last = BZ.compute(o); } catch (e) { $("f-err").textContent = "排盤失敗，請檢查日期是否有效。"; return; }
+          render(last);
+          if (scroll) $("o-time").scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+        }
+        $("bz-form").addEventListener("submit", function (e) { e.preventDefault(); run(true); });
+
+        var tt;
+        function toast(msg) {
+          var t = $("x-toast"); t.textContent = msg; t.classList.add("is-on");
+          clearTimeout(tt); tt = setTimeout(function () { t.classList.remove("is-on"); }, 1800);
+        }
+        function fallback(text) {
+          var ta = $("x-ta"), ok = false;
+          ta.value = text; ta.focus(); ta.select(); ta.setSelectionRange(0, text.length);
+          try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+          ta.blur();
+          toast(ok ? "已複製" : "複製失敗，請手動選取文字");
+        }
+        function copy(text, btn) {
+          var ta = $("x-ta"), ok = false;
+          ta.value = text; ta.focus(); ta.select(); ta.setSelectionRange(0, text.length);
+          try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+          ta.blur();
+          if (btn) {
+            var orig = btn.getAttribute("data-label") || btn.textContent;
+            btn.setAttribute("data-label", orig);
+            btn.textContent = "✓ 已複製";
+            clearTimeout(btn._t); btn._t = setTimeout(function () { btn.textContent = orig; }, 1800);
+          }
+          toast("已複製");
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).catch(function () { if (!ok) toast("請在下方文字框手動選取複製"); });
+          } else if (!ok) toast("請在下方文字框手動選取複製");
+        }
+        $("b-copy").addEventListener("click", function () { if (last) copy(last.prompt, this); });
+        $("b-copy-chart").addEventListener("click", function () { if (last) copy(last.chartText, this); });
+
+        document.addEventListener("DOMContentLoaded", function () {
+          var nav = document.querySelector("header.nav");
+          if (nav) nav.insertAdjacentHTML("afterbegin", '<a class="x-brand" href="#top">命盤工坊</a>');
+        });
+        window.BZUI = { CITIES: CITIES, opts: opts, pad: pad, esc: esc, ganCell: ganCell, copy: copy, toast: toast, last: function () { return last; } };
+        run(false);
+      })();
+    </script>
+    <script id="bz-tabs">
+      var BZX = (function () {
+        var wx = BZ.wx, ss = BZ.shiShen, HIDE = BZ.HIDE, GEN = BZ.GEN, CTRL = BZ.CTRL, ZHI = BZ.ZHI;
+        var WUHE = ["甲己", "乙庚", "丙辛", "丁壬", "戊癸"];
+        var LIUHE = { 子丑: "土", 寅亥: "木", 卯戌: "火", 辰酉: "金", 巳申: "水", 午未: "火" };
+        var CHONG = ["子午", "丑未", "寅申", "卯酉", "辰戌", "巳亥"];
+        var XING = ["寅巳", "巳申", "寅申", "丑戌", "戌未", "丑未", "子卯"];
+        var HAI = ["子未", "丑午", "寅巳", "卯辰", "申亥", "酉戌"];
+        var PO = ["子酉", "午卯", "申巳", "寅亥", "辰丑", "戌未"];
+        var ANHE = ["寅丑", "卯申", "午亥", "子巳"];
+        function has(list, a, b) { return list.indexOf(a + b) >= 0 || list.indexOf(b + a) >= 0; }
+        function key(obj, a, b) { return obj[a + b] || obj[b + a] || null; }
+        function stemRel(a, b) {
+          if (has(WUHE, a, b)) return "天干五合";
+          var x = wx(a), y = wx(b);
+          if (x === y) return "天干比和";
+          if (GEN[x] === y || GEN[y] === x) return "天干相生";
+          return "天干相剋";
+        }
+        function hiddenHe(x, y) {
+          var A = HIDE[x].split(""), B = HIDE[y].split("");
+          return A.some(function (a) { return B.some(function (b) { return has(WUHE, a, b); }); });
+        }
+        function branchRel(x, y) {
+          var out = [], lh = key(LIUHE, x, y);
+          if (lh) out.push("六合" + lh);
+          if (has(CHONG, x, y)) out.push("六沖");
+          if (x !== y) BZ.GROUPS.forEach(function (g, k) { if (g.indexOf(x) >= 0 && g.indexOf(y) >= 0) out.push("半合" + BZ.GROUP_WX[k] + "局"); });
+          if (has(XING, x, y) || (x === y && "辰午酉亥".indexOf(x) >= 0)) out.push("相刑");
+          if (has(HAI, x, y)) out.push("相害");
+          if (has(PO, x, y)) out.push("相破");
+          if (!lh && (has(ANHE, x, y) || hiddenHe(x, y))) out.push("暗合");
+          return out.length ? "地支" + out.join("·") : "地支無合沖";
+        }
+        function elemRel(e1, e2) {
+          if (e1 === e2) return "比和";
+          if (GEN[e1] === e2) return e1 + "生" + e2;
+          if (GEN[e2] === e1) return e2 + "生" + e1;
+          if (CTRL[e1] === e2) return e1 + "克" + e2;
+          return e2 + "克" + e1;
+        }
+        function wxSorted(r) {
+          var W = r.wuxing;
+          return W.keys.map(function (k, i) { return [k, W.pct[i], i]; })
+            .sort(function (a, b) { return b[1] - a[1] || a[2] - b[2]; })
+            .map(function (x) { return x[0] + x[1]; }).join(" · ");
+        }
+        function curYun(r) {
+          var dg = r.pillars[2].g;
+          for (var i = 0; i < r.dayun.length; i++) if (r.dayun[i].cur) return r.dayun[i];
+          return null;
+        }
+        function birthLine(r, full) {
+          var o = r.input, c = full ? "：" : ":", d = o.y + "-" + BZUI_pad(o.m) + "-" + BZUI_pad(o.d);
+          var l = full ? ["出生（真太陽時）", "出生（陽曆）"] : ["出生(真太陽時)", "出生(陽曆)"];
+          if (o.unknown) return l[1] + c + d + " 時辰不明";
+          return (r.corrected ? l[0] : l[1]) + c + r.stamp;
+        }
+        function BZUI_pad(n) { return (n < 10 ? "0" : "") + n; }
+
+        function person(r, label) {
+          var o = r.input, P = r.pillars, dg = P[2].g, L = [];
+          L.push("【" + label + "命盤】");
+          L.push("姓名:" + (o.name || label) + " · " + o.gender + "命 · " + dg + wx(dg) + " 日主");
+          L.push(birthLine(r, false), "四柱:");
+          P.forEach(function (p, i) {
+            if (i === 3 && o.unknown) return;
+            L.push(p.name + " " + p.gz + " | " + (i === 2 ? "日主 " + dg + wx(dg) : "干十神=" + ss(dg, p.g)));
+          });
+          L.push("五行力量:" + wxSorted(r));
+          L.push("納音:年=" + P[0].nayin + " · 日=" + P[2].nayin);
+          var y = curYun(r), f = r.dayun[0];
+          L.push("當前大運:" + (y ? y.gz + "(" + y.start + "起 · 干十神=" + y.ss + ")" : "未起運(" + f.start + "起 " + f.gz + " · 干十神=" + f.ss + ")"));
+          return L.join("\n");
+        }
+
+        function pair(a, b, mode) {
+          var career = mode === "career", rows = [];
+          var labels = ["年柱", career ? "月柱(事業宮)" : "月柱", career ? "日柱" : "日柱(夫妻宮)", "時柱"];
+          for (var i = 0; i < 4; i++) {
+            if (i === 3 && (a.input.unknown || b.input.unknown)) continue;
+            var pa = a.pillars[i], pb = b.pillars[i];
+            rows.push({ i: i, label: labels[i], a: pa.gz, b: pb.gz, gan: stemRel(pa.g, pb.g), zhi: branchRel(pa.z, pb.z) });
+          }
+          var ny = [0, 2].map(function (i) {
+            var x = a.pillars[i].nayin, y = b.pillars[i].nayin;
+            return { x: x, y: y, rel: elemRel(x.slice(-1), y.slice(-1)) };
+          });
+          var head = [
+            "你是資深子平命理「" + (career ? "事業合夥" : "合婚") + "」分析師。請基於下方兩人命盤,進行一次系統的雙人合盤分析:",
+            "① 總論:先各自點出兩人的日主旺衰傾向與格局基調,再給合盤整體印象。",
+            career
+              ? "② 宮位:重點比對月柱/月支(事業宮)的合沖生克,判斷事業契合度、誰主誰輔、共事順逆。"
+              : "② 宮位:重點比對日柱/日支(夫妻宮)的合沖生克,判斷夫妻緣分深淺、相處之道與潛在隱患。",
+            "③ 性格相處:以雙方十神組合與五行互補/沖剋,分析性格契合點、相處模式與最易起摩擦之處。",
+            "④ 運勢節奏:結合雙方當前大運與近年流年,大致點出關係發展的節奏與值得留意的年份(宜進/宜守)。",
+            "⑤ 經營與化解:給出具體可行的相處/經營建議,以及對不利因素的化解之道。",
+            "⑥ 最後用一句話作總評。",
+            "",
+            "要求:嚴格依據所給資料,不引入胎元/命宮/神煞等未提供變數;不下\"絕配/必合/必離/必散\"這類絕對斷語;開頭宣告「本分析僅供文化娛樂參考,非專業決策依據」;分點作答,有理有據;用中文回覆。"
+          ];
+          var L = head.concat(["", person(a, "甲方"), "", person(b, "乙方"), "", "【四柱逐柱對照】"]);
+          rows.forEach(function (r) { L.push(r.label + " 甲:" + r.a + " / 乙:" + r.b + " → " + r.gan + " · " + r.zhi); });
+          L.push("", "【納音對照】年納音 " + ny[0].x + "/" + ny[0].y + "=" + ny[0].rel + " ; 日納音 " + ny[1].x + "/" + ny[1].y + "=" + ny[1].rel);
+          if (a.input.unknown) L.push("備註：甲方時辰未知，時柱從略");
+          if (b.input.unknown) L.push("備註：乙方時辰未知，時柱從略");
+          L.push("---", "由「命盤工坊」生成");
+          return { rows: rows, labels: labels, nayin: ny, prompt: L.join("\n") };
+        }
+
+        var LOOK = {
+          木: "修長清瘦，臉型偏長、額頭高、眉目清秀，骨架挺直。",
+          火: "上尖下闊或尖下巴，顴骨略顯，眼神明亮有神，五官輪廓鮮明。",
+          土: "方厚敦實，臉型偏方、鼻樑厚實、下巴寬穩，整體穩重。",
+          金: "方正白淨，輪廓分明、下顎線清楚、五官端正俐落。",
+          水: "圓滿飽滿，雙頰柔和、髮際線低圓、下巴短而圓，幾乎看不見下顎稜角。"
+        };
+        var PEACH = { 0: "酉", 1: "卯", 2: "午", 3: "子" };
+        function grp(z) { for (var i = 0; i < 4; i++) if (BZ.GROUPS[i].indexOf(z) >= 0) return i; return -1; }
+
+        function spouse(r) {
+          var o = r.input, P = r.pillars, dg = P[2].g, male = o.gender === "男";
+          var stars = male ? ["正財", "偏財"] : ["正官", "七殺"], use = [0, 1, 2, 3].filter(function (i) { return !(i === 3 && o.unknown); });
+          var hit = null;
+          stars.some(function (s, si) {
+            use.some(function (i) { if (i !== 2 && ss(dg, P[i].g) === s) { hit = { star: s, si: si, stem: P[i].g, i: i, tou: true }; return true; } });
+            if (hit) return true;
+            [0, 1, 2].some(function (k) {
+              return use.some(function (i) {
+                var h = HIDE[P[i].z][k];
+                if (h && ss(dg, h) === s) { hit = { star: s, si: si, stem: h, i: i, tou: false }; return true; }
+              });
+            });
+            return !!hit;
+          });
+          var dz = P[2].z, dh = HIDE[dz];
+          var F = { dz: dz, dh: dh };
+          if (hit) {
+            F.star = hit.star; F.elem = wx(hit.stem); F.pillar = P[hit.i].name; F.tou = hit.tou;
+            F.starLine = hit.si === 0
+              ? hit.star + "（" + (male ? "男命以正財為妻星" : "女命以正官為夫星") + "）"
+              : hit.star + "（" + (male ? "男命不見正財，以偏財為妻星" : "女命不見正官，以七殺為夫星") + "）";
+            F.touLine = hit.tou ? "透出天干（" + F.pillar + " " + hit.stem + "）" : "不透天干，只藏在地支裡";
+            F.inPalace = !hit.tou && hit.i === 2;
+            F.palaceLine = (F.inPalace ? "是" : "否") + "（夫妻宮＝日支 " + dz + "，藏 " + dh + "）";
+          } else {
+            F.star = null; F.elem = wx(dh[0]); F.pillar = "日柱（配偶宮）"; F.tou = false;
+            F.starLine = "不現，回到配偶宮（日支）論（日支 " + dz + " 本氣 " + dh[0] + "，" + ss(dg, dh[0]) + "）";
+            F.touLine = "不透不藏（以日支本氣取象）";
+            F.inPalace = true;
+            F.palaceLine = "以夫妻宮代論（夫妻宮＝日支 " + dz + "，藏 " + dh + "）";
+          }
+          var W = r.wuxing;
+          F.pct = W.pct[W.keys.indexOf(F.elem)];
+          var harm = [], pn = ["年支", "月支", "日支", "時支"];
+          use.forEach(function (i) {
+            if (i === 2) return;
+            var z = P[i].z, t = [];
+            if (has(CHONG, dz, z)) t.push("沖");
+            if (has(XING, dz, z)) t.push("刑");
+            if (has(PO, dz, z)) t.push("破");
+            if (has(HAI, dz, z)) t.push("害");
+            if (t.length) harm.push(z + dz + t.join("") + "（" + pn[i] + "）");
+          });
+          F.harm = harm.length ? harm.join("、") : "無";
+          var yi = ZHI.indexOf(P[0].z), hl = ZHI[(15 - yi) % 12], tx = ZHI[(21 - yi) % 12];
+          var peachSet = [PEACH[grp(P[0].z)], PEACH[grp(P[2].z)]], sha = [];
+          use.forEach(function (i) {
+            var z = P[i].z, n = [];
+            if (peachSet.indexOf(z) >= 0) n.push("桃花(咸池)");
+            if (z === hl) n.push("紅鸞");
+            if (z === tx) n.push("天喜");
+            n.forEach(function (x) { sha.push(x + "（" + P[i].name + "）"); });
+          });
+          F.sha = sha.length ? sha.join("、") : "無";
+          var de = wx(dg), mom = null;
+          for (var k in GEN) if (GEN[k] === de) mom = k;
+          var sup = W.pct[W.keys.indexOf(de)] + W.pct[W.keys.indexOf(mom)];
+          F.support = sup;
+          F.strength = sup >= 55 ? "身強" : sup >= 40 ? "中和" : sup >= 25 ? "身弱" : "身弱·極弱";
+          F.age = r.year - o.y;
+          var y = curYun(r);
+          F.yun = y ? y.gz + "（" + y.start + "–" + (y.start + 9) + "，" + y.ss + "）" : "未起運（" + r.dayun[0].start + " 起 " + r.dayun[0].gz + "）";
+          F.look = LOOK[F.elem];
+          return F;
+        }
+
+        function soulmate(r, mateGender, style) {
+          var o = r.input, P = r.pillars, dg = P[2].g, F = spouse(r);
+          var pillars = P.filter(function (p, i) { return !(i === 3 && o.unknown); }).map(function (p) { return p.gz; }).join("  ") + (o.unknown ? "  （時柱不明）" : "");
+          var L = [
+            "你是一位資深子平（八字）命理師，同時擅長把命理取象翻譯成可以直接出圖的人物描述。",
+            "下面是一份完整命盤，以及從中提取好的「配偶星」取象真值。請據此做兩件事：先寫正緣（未來伴侶）的文字解讀，再寫一段英文畫像描述並直接把圖生成出來。",
+            "",
+            "【命主】",
+            "性別：" + o.gender,
+            "正緣性別（要畫的人）：" + mateGender + "　※ 預設取命主異性；同性伴侶自行改這一行",
+            "畫像年齡：約 " + F.age + " 歲（取命主同輩）　※ 命盤斷不出對方歲數，這一行只是讓畫面別畫成明顯不同世代",
+            birthLine(r, true),
+            "出生地：" + o.city,
+            "四柱：" + pillars,
+            "日主：" + dg + wx(dg) + "（" + F.strength + "）",
+            "日柱納音：" + P[2].nayin,
+            "當前大運：" + F.yun,
+            "",
+            "【配偶星取象 · 真值】",
+            "配偶星：" + F.starLine,
+            "五行：" + F.elem,
+            "透藏：" + F.touLine,
+            "所在柱位：" + F.pillar,
+            "是否坐夫妻宮：" + F.palaceLine,
+            "力量：" + F.elem + "在全局五行占 " + F.pct + "%",
+            "夫妻宮刑沖破害：" + F.harm,
+            "桃花類神煞（桃花/紅鸞/天喜/咸池）：" + F.sha,
+            "",
+            "【五行形相 · 怎麼把真值變成臉】",
+            "這一層用古法相術的「五行形人」——骨相按五行分五類，配偶星屬什麼五行，骨相就照哪一類下筆。",
+            "本盤配偶星屬【" + F.elem + "】，骨相取：" + F.look,
+            "",
+            "在這個骨相之上，再按下面四條調整：",
+            "1. 透干還是只藏支 → 透，神情外放、笑意明朗；只藏，神情內斂、笑意很淡。",
+            "2. 力量占比 → ≥30% 存在感強、體態飽滿；<15% 清減、氣質安靜；中間取自然。",
+            "3. 夫妻宮有無刑沖 → 有，眼神裡留一點距離感（這是畫面裡唯一承載張力的地方）；無，眼神鬆弛。",
+            "4. 有無桃花類神煞 → 有，眉眼親和、有天然吸引力；無，素淨，不作媚態。",
+            "",
+            "⚠️ 這五類只定骨相方向，不是臉譜。同一個五行也該畫出不同的人，不要往標準網紅臉上靠。",
+            "",
+            "【怎麼推 · 八條】",
+            "1. 配偶星的十神與五行 —— 定對方的基本氣質，以及你跟他/她的相處模式（正財主務實持家，偏財主活絡多緣，正官主規矩有擔當，七殺主強勢有鋒芒）。",
+            "2. 透干還是只藏支 —— 透，這個人會明明白白走進你的生活；只藏，多半要靠特定場合或中間人牽，不會自己撞上來。",
+            "3. 落在哪一柱 —— 年柱主遠方、長輩引薦、更早的圈子；月柱主同學同事這類日常社交圈；日柱主近身、朝夕相處；時柱主晚成、晚遇。",
+            "4. 坐不坐夫妻宮 —— 坐宮主「就在身邊」；不坐宮主要走出去才遇得到。",
+            "5. 星的力量 —— 占比高，對方能量外顯、事業心重、存在感強；占比低，對方低調內斂，多半要你先開口。",
+            "6. 夫妻宮有沒有刑沖破害 —— 有，就說清是沖、是刑、是破還是害，各主什麼樣的相處課題；沒有，就不要硬編一個出來。",
+            "7. 桃花類神煞 —— 主對方的外形吸引力與社交面；沒有就直說沒有。",
+            "8. 大運流年上配偶星什麼時候透出、什麼時候得力 —— 這是緣分顯象的窗口期，是節奏參考，不是「哪一年一定結婚」。",
+            "",
+            "【輸出格式】",
+            "",
+            "一、取象依據",
+            "逐條說清你是從上面哪幾條真值推出來的。不要籠統寫「命中註定」，要寫成「因為正財藏於年支、不透天干，所以……」這種可回溯的句子。",
+            "",
+            "二、他/她是個什麼樣的人",
+            "性格、氣質、做事方式，以及跟你相處時會呈現的模式。",
+            "",
+            "三、你們大概會怎麼遇見",
+            "場合、渠道、地理方向、時間窗口。",
+            "",
+            "四、給你的一句提醒",
+            "不要算命腔。針對上面推出來的這個模式，給一句今天就能用上的話。",
+            "",
+            "五、人物誌",
+            "⚠️ 重要：這一段裡只有「大致年齡差」和「最可能在哪遇到」能真正從命盤取象。",
+            "身材、學歷、職業、家境這四條，八字裡沒有對應的真值，寫成事實就是編。",
+            "所以每一條都寫兩行：",
+            "  · 推斷：……",
+            "  · 依據：從上面哪一條真值延伸出來的；如果延伸不出來，直接寫「命盤無此真值，以下僅為取象延伸，不作事實陳述」。",
+            "- 大致年齡差：",
+            "- 身材與體態：",
+            "- 學歷取向：",
+            "- 職業方向：",
+            "- 家境與成長環境：",
+            "- 最可能在哪遇到：",
+            "",
+            "六、畫像描述（英文）",
+            "⚠️ 要畫的是【命主】段裡「正緣性別」那一行寫的人，不是命主本人。",
+            "用英文寫一段 60–100 詞的寫實人像描述。臉型與骨相必須照【五行形相】那一段寫，不要另起爐灶。",
+            "還要包含：性別與大致年齡、五官比例、髮型、神態氣質、穿著風格（現代日常，不要古裝）。",
+            "不要出現任何命理術語（不要寫 water element、Zheng Cai 之類），只寫畫面。",
+            "畫風：" + style + " —— 把這一句寫進描述裡，其餘畫面細節你自由發揮。",
+            "寫完這一段之後，請立刻用它生成這張圖片（now generate this image）。",
+            "---",
+            "由「命盤工坊」生成"
+          ];
+          return { facts: F, prompt: L.join("\n") };
+        }
+        return { pair: pair, soulmate: soulmate, spouse: spouse, stemRel: stemRel, branchRel: branchRel };
+      })();
+    </script>
+    <script id="bz-tabs-ui">
+      (function () {
+        var U = window.BZUI, $ = function (id) { return document.getElementById(id); }, pad = U.pad, esc = U.esc, gc = U.ganCell;
+        var calc = $("x-calc"), h1 = document.querySelector(".hero h1"), sub = document.querySelector(".hero .hero__sub");
+        var HERO = {
+          solo: [h1.textContent, sub.textContent],
+          marriage: ["免費 AI 八字合婚 Prompt", "兩人命盤一鍵合盤 · 餵到 ChatGPT · Claude · DeepSeek"],
+          career: ["免費 AI 八字合夥 Prompt", "夥伴雙盤一鍵合盤 · 比對事業宮、五行同向與大運共振"],
+          soulmate: ["免費 AI 正緣畫像 Prompt", "一段提示詞 · 讓 Gemini / ChatGPT 寫出解讀並直接畫出來"]
+        };
+        var B_DEF = { marriage: { y: 2000, m: 6, d: 16, h: 4, mi: 3, g: "女", name: "", unknown: false, city: "0" }, career: { y: 1988, m: 4, d: 20, h: 11, mi: 0, g: "男", name: "", unknown: false, city: "0" } };
+        var store = { marriage: null, career: null };
+
+        function panel(p, title, def) {
+          var el = $(p);
+          el.innerHTML =
+            "<h3>" + title + "</h3>" +
+            '<label class="x-field"><span class="x-label">姓名（可選）</span><input class="x-in" id="' + p + '-name" type="text" maxlength="20" placeholder="' + title + '" autocomplete="off" /></label>' +
+            '<fieldset class="x-field"><legend class="x-label">性別</legend><div class="x-row">' +
+            '<label class="x-check"><input type="radio" name="' + p + '-g" value="男" /> 男</label><label class="x-check"><input type="radio" name="' + p + '-g" value="女" /> 女</label></div></fieldset>' +
+            '<fieldset class="x-field"><legend class="x-label">出生日期（公曆）</legend><div class="x-row">' +
+            '<select class="x-in" id="' + p + '-y" aria-label="年"></select><select class="x-in" id="' + p + '-m" aria-label="月"></select><select class="x-in" id="' + p + '-d" aria-label="日"></select></div></fieldset>' +
+            '<fieldset class="x-field"><legend class="x-label">出生時間</legend><div class="x-row">' +
+            '<select class="x-in" id="' + p + '-h" aria-label="時"></select><select class="x-in" id="' + p + '-mi" aria-label="分"></select></div>' +
+            '<label class="x-check"><input type="checkbox" id="' + p + '-unknown" /> 時辰不明</label></fieldset>' +
+            '<div class="x-field"><label class="x-label" for="' + p + '-city">出生地</label><select class="x-in" id="' + p + '-city">' + $("f-city").innerHTML + "</select>" +
+            '<div class="x-row" id="' + p + '-custom" hidden><input class="x-in" id="' + p + '-lon" type="number" step="0.01" min="-180" max="180" value="121.56" aria-label="經度（東正西負）" placeholder="經度" />' +
+            '<input class="x-in" id="' + p + '-tz" type="number" step="0.5" min="-12" max="14" value="8" aria-label="UTC 時差" placeholder="UTC±" /></div></div>';
+          U.opts($(p + "-y"), 1900, 2100, def.y, function (i) { return i + " 年"; });
+          U.opts($(p + "-m"), 1, 12, def.m, function (i) { return i + " 月"; });
+          U.opts($(p + "-h"), 0, 23, def.h, function (i) { return pad(i) + " 時"; });
+          U.opts($(p + "-mi"), 0, 59, def.mi, function (i) { return pad(i) + " 分"; });
+          fillDays(p, def.d);
+          $(p + "-y").addEventListener("change", function () { fillDays(p, +$(p + "-d").value); });
+          $(p + "-m").addEventListener("change", function () { fillDays(p, +$(p + "-d").value); });
+          $(p + "-city").addEventListener("change", function () { $(p + "-custom").hidden = this.value !== "custom"; });
+          $(p + "-unknown").addEventListener("change", function () { $(p + "-h").disabled = $(p + "-mi").disabled = this.checked; });
+          setVals(p, def);
+        }
+        function fillDays(p, keep) {
+          var y = +$(p + "-y").value, m = +$(p + "-m").value, max = new Date(Date.UTC(y, m, 0)).getUTCDate();
+          U.opts($(p + "-d"), 1, max, Math.min(keep, max), function (i) { return i + " 日"; });
+        }
+        function getVals(p) {
+          var g = document.querySelector('input[name="' + p + '-g"]:checked');
+          return { y: +$(p + "-y").value, m: +$(p + "-m").value, d: +$(p + "-d").value, h: +$(p + "-h").value, mi: +$(p + "-mi").value,
+            g: g ? g.value : "男", name: $(p + "-name").value, unknown: $(p + "-unknown").checked, city: $(p + "-city").value, lon: $(p + "-lon").value, tz: $(p + "-tz").value };
+        }
+        function setVals(p, v) {
+          $(p + "-y").value = v.y; $(p + "-m").value = v.m; fillDays(p, v.d);
+          $(p + "-h").value = v.h; $(p + "-mi").value = v.mi; $(p + "-name").value = v.name || "";
+          document.querySelectorAll('input[name="' + p + '-g"]').forEach(function (r) { r.checked = r.value === v.g; });
+          $(p + "-unknown").checked = !!v.unknown; $(p + "-h").disabled = $(p + "-mi").disabled = !!v.unknown;
+          $(p + "-city").value = v.city || "0"; $(p + "-custom").hidden = $(p + "-city").value !== "custom";
+          if (v.lon != null) $(p + "-lon").value = v.lon;
+          if (v.tz != null) $(p + "-tz").value = v.tz;
+        }
+        function input(p) {
+          var v = getVals(p), lon, tz, city;
+          if (v.city === "custom") {
+            lon = parseFloat(v.lon); tz = parseFloat(v.tz);
+            if (!(lon >= -180 && lon <= 180) || !(tz >= -12 && tz <= 14)) throw new Error("請填入有效經度（−180 至 180）與 UTC 時差（−12 至 +14）。");
+            city = "自訂（經度 " + lon + "，UTC" + (tz >= 0 ? "+" : "") + tz + "）";
+          } else { var c = U.CITIES[+v.city]; city = c[0]; lon = c[1]; tz = c[2]; }
+          return { name: v.name.trim(), gender: v.g, y: v.y, m: v.m, d: v.d, h: v.h, mi: v.mi, unknown: v.unknown, correct: $("p-correct").checked, lon: lon, tz: tz, city: city };
+        }
+
+        panel("pa", "甲方", { y: 1995, m: 9, d: 15, h: 14, mi: 9, g: "男", name: "", unknown: false, city: "0" });
+        panel("pb", "乙方", B_DEF.marriage);
+
+        var tab = "solo", charts = {};
+        function wxChart(id, r) {
+          var W = r.wuxing;
+          if (!window.Chart) return;
+          if (charts[id]) { charts[id].data.datasets[0].data = W.pct.slice(); charts[id].update(); return; }
+          charts[id] = new Chart($(id), {
+            type: "bar",
+            data: { labels: W.keys, datasets: [{ label: "五行", data: W.pct.slice(), backgroundColor: ["var(--chart-2)", "var(--chart-7)", "var(--chart-3)", "var(--chart-5)", "var(--chart-1)"] }] },
+            options: {
+              scales: { y: { ticks: { callback: function (v) { return v + "%"; } } } },
+              plugins: { legend: { display: false }, datalabels: Object.assign({}, Hark.labels.values, { formatter: function (v) { return v + "%"; } }), tooltip: { callbacks: { label: function (c) { return c.raw + "%"; } } } }
+            }
+          });
+        }
+        function wxTxt(r) { return r.wuxing.keys.map(function (k, i) { return k + " " + r.wuxing.pct[i] + "%"; }).join(" / "); }
+
+        var lastPair = null;
+        function runPair(scroll) {
+          $("p-err").textContent = "";
+          var a, b;
+          try { a = BZ.compute(input("pa")); b = BZ.compute(input("pb")); }
+          catch (e) { $("p-err").textContent = e.message && e.message.indexOf("經度") >= 0 ? e.message : "排盤失敗，請檢查日期是否有效。"; return; }
+          var res = BZX.pair(a, b, tab);
+          lastPair = res;
+          $("pair-out").hidden = false;
+          var nA = esc(a.input.name || "甲方"), nB = esc(b.input.name || "乙方");
+          var cols = res.rows, h = '<div class="x-lab x-hd"></div>';
+          cols.forEach(function (c) { h += '<div class="x-hd">' + c.label + "</div>"; });
+          h += '<div class="x-lab">' + nA + "</div>";
+          cols.forEach(function (c) { h += '<div><span class="x-big">' + gc(c.a[0]) + gc(c.a[1]) + "</span></div>"; });
+          h += '<div class="x-lab">' + nB + "</div>";
+          cols.forEach(function (c) { h += '<div><span class="x-big">' + gc(c.b[0]) + gc(c.b[1]) + "</span></div>"; });
+          h += '<div class="x-lab x-last">對照</div>';
+          cols.forEach(function (c) { h += '<div class="x-rel x-last">' + c.gan + "<br />" + c.zhi + "</div>"; });
+          var g = $("pr-grid");
+          g.style.gridTemplateColumns = "64px repeat(" + cols.length + ", minmax(76px, 1fr))";
+          g.innerHTML = h;
+          var ny = res.nayin, note = [];
+          if (a.input.unknown) note.push("甲方時辰未知，時柱從略");
+          if (b.input.unknown) note.push("乙方時辰未知，時柱從略");
+          $("pr-ny").innerHTML = '<span class="pill">納音</span> 年 ' + ny[0].x + "/" + ny[0].y + "＝" + ny[0].rel + " · 日 " + ny[1].x + "/" + ny[1].y + "＝" + ny[1].rel + (note.length ? " · " + note.join("；") : "");
+          $("pr-cap-a").innerHTML = nA + " 五行：" + wxTxt(a) + "<small>" + a.pillars.map(function (p) { return p.gz; }).join(" ") + "；單位 %</small>";
+          $("pr-cap-b").innerHTML = nB + " 五行：" + wxTxt(b) + "<small>" + b.pillars.map(function (p) { return p.gz; }).join(" ") + "；單位 %</small>";
+          $("pr-wx-a").setAttribute("aria-label", nA + " 五行 " + wxTxt(a));
+          $("pr-wx-b").setAttribute("aria-label", nB + " 五行 " + wxTxt(b));
+          wxChart("pr-wx-a", a); wxChart("pr-wx-b", b);
+          $("pr-pre").textContent = res.prompt;
+          if (scroll) $("pair-out").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+        }
+
+        var lastSM = null, mateTouched = false;
+        function runSM(scroll) {
+          var r = U.last();
+          if (!r) return;
+          var mg = document.querySelector('input[name="sm-gender"]:checked'), st = document.querySelector('input[name="sm-style"]:checked');
+          var res = BZX.soulmate(r, mg ? mg.value : "女", st ? st.value : "soft realistic colored pencil portrait");
+          lastSM = res;
+          var F = res.facts, P = r.pillars, dg = P[2].g, h = "";
+          $("sm-out").hidden = false;
+          var rows = [
+            ["", function (p) { return p.name; }, "x-hd"],
+            ["十神", function (p, i) { return i === 2 ? "日主" : BZ.shiShen(dg, p.g); }],
+            ["干支", function (p) { return '<span class="x-big">' + gc(p.g) + gc(p.z) + "</span>"; }],
+            ["藏干", function (p) { return p.hide.map(function (x) { return gc(x) + '<span class="x-sm">' + BZ.shiShen(dg, x) + "</span>"; }).join(" "); }]
+          ];
+          rows.forEach(function (row, ri) {
+            var last = ri === rows.length - 1 ? " x-last" : "";
+            h += '<div class="x-lab' + (row[2] ? " " + row[2] : "") + last + '">' + row[0] + "</div>";
+            P.forEach(function (p, i) { h += '<div class="' + (row[2] || "") + last + '">' + (i === 3 && r.input.unknown && ri ? '<span class="x-sm">時辰不明</span>' : row[1](p, i)) + "</div>"; });
+          });
+          $("sm-grid").innerHTML = h;
+          var facts = [
+            ["配偶星", F.star ? F.star : "不現", F.starLine.replace(/^[^（]*/, "")],
+            ["五行", F.elem, "全局占 " + F.pct + "%"],
+            ["透藏", F.tou ? "透干" : "只藏地支", F.touLine],
+            ["所在柱位", F.pillar, ""],
+            ["坐夫妻宮", F.inPalace ? "是" : "否", "日支 " + F.dz + "，藏 " + F.dh],
+            ["夫妻宮刑沖破害", F.harm, ""],
+            ["桃花類神煞", F.sha, "桃花/咸池、紅鸞、天喜"],
+            ["日主", dg + BZ.wx(dg) + " · " + F.strength, "同類 + 生扶占 " + F.support + "%"],
+            ["當前大運", F.yun, ""],
+            ["五行形相", F.elem + "形人", F.look]
+          ];
+          $("sm-facts").innerHTML = facts.map(function (f) {
+            return '<div class="row"><dt>' + f[0] + (f[2] ? " <small>" + esc(f[2]) + "</small>" : "") + "</dt><dd>" + esc(f[1]) + "</dd></div>";
+          }).join("");
+          $("sm-pre").textContent = res.prompt;
+          if (scroll) $("sm-out").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+        }
+
+        function setTab(t) {
+          var prev = tab;
+          if ((prev === "marriage" || prev === "career") && prev !== t) store[prev] = getVals("pb");
+          tab = t;
+          calc.setAttribute("data-tab", t);
+          document.querySelectorAll(".x-tab").forEach(function (b) { b.setAttribute("aria-selected", b.getAttribute("data-tab") === t ? "true" : "false"); });
+          h1.textContent = HERO[t][0]; sub.textContent = HERO[t][1];
+          var duo = t === "marriage" || t === "career";
+          $("bz-form").hidden = duo;
+          $("sm-extra").hidden = t !== "soulmate";
+          $("pair-form").hidden = !duo;
+          $("pair-out").hidden = !duo;
+          $("sm-out").hidden = t !== "soulmate";
+          $("b-solo-go").textContent = t === "soulmate" ? "生成正緣 Prompt" : "生成命盤 + Prompt";
+          if (duo) {
+            if (prev !== t) setVals("pb", store[t] || B_DEF[t]);
+            runPair(false);
+          } else if (t === "soulmate") runSM(false);
+        }
+        document.querySelectorAll(".x-tab").forEach(function (b) {
+          b.addEventListener("click", function () { setTab(this.getAttribute("data-tab")); });
+          b.addEventListener("keydown", function (e) {
+            var list = Array.prototype.slice.call(document.querySelectorAll(".x-tab")), i = list.indexOf(this);
+            if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+              var n = list[(i + (e.key === "ArrowRight" ? 1 : list.length - 1)) % list.length];
+              n.focus(); setTab(n.getAttribute("data-tab"));
+            }
+          });
+        });
+
+        $("pair-form").addEventListener("submit", function (e) { e.preventDefault(); runPair(true); });
+        $("bz-form").addEventListener("submit", function () { if (tab === "soulmate") runSM(true); });
+        document.querySelectorAll('input[name="gender"]').forEach(function (r) {
+          r.addEventListener("change", function () {
+            if (mateTouched) return;
+            var opp = this.value === "男" ? "女" : "男";
+            document.querySelectorAll('input[name="sm-gender"]').forEach(function (x) { x.checked = x.value === opp; });
+          });
+        });
+        document.querySelectorAll('input[name="sm-gender"]').forEach(function (r) { r.addEventListener("change", function () { mateTouched = true; if (tab === "soulmate") runSM(false); }); });
+        document.querySelectorAll('input[name="sm-style"]').forEach(function (r) { r.addEventListener("change", function () { if (tab === "soulmate") runSM(false); }); });
+        $("b-pair-copy").addEventListener("click", function () { if (lastPair) U.copy(lastPair.prompt, this); });
+        $("b-sm-copy").addEventListener("click", function () { if (lastSM) U.copy(lastSM.prompt, this); });
+      })();
+    </script>
+  </body>
+</html>
